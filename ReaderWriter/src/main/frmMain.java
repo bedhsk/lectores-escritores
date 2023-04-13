@@ -7,19 +7,16 @@ package main;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.time.LocalDateTime;
+import javax.management.monitor.Monitor;
 
 /**
  *
  * @author Miguel Matul <https://github.com/MigueMat4>
  */
 public class frmMain extends javax.swing.JFrame {
-    
-    // Región crítica
-    String[][] biblioteca = new String[2][30];
-    int siguiente_espacio = 5; // habrán 5 libros por defecto, por lo que irá agregando libros según el próximo espacio disponible
-    int cl = 0; // contador de lectores durante la región crítica
-    int ce = 0; // contador de escritores durante la región crítica
-    
+
+    Monitor monitor = new Monitor();
+
     // para uso del programa principal
     Escritor hilo_escritor; // hilo que creara escritores
     Lector hilo_lector; // hilo que creara lectores
@@ -30,8 +27,8 @@ public class frmMain extends javax.swing.JFrame {
      */
     public frmMain() {
         initComponents();
-        for (int i=0; i<2; i++) {
-            for (int j=0; j<30; j++) {
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 30; j++) {
                 biblioteca[i][j] = "*"; // espacios vacíos
             }
         }
@@ -47,65 +44,44 @@ public class frmMain extends javax.swing.JFrame {
         biblioteca[0][4] = "Hamlet";
         biblioteca[1][4] = "William Shakespeare";
         // mostrar biblioteca en el JTextArea
-        for (int j=0; j<5; j++) {
+        for (int j = 0; j < 5; j++) {
             String textoActual = txaBiblioteca.getText();
-            txaBiblioteca.setText(textoActual + "\n"+ biblioteca[0][j] + " por: " + biblioteca[1][j]);
+            txaBiblioteca.setText(textoActual + "\n" + biblioteca[0][j] + " por: " + biblioteca[1][j]);
         }
     }
-    
+
     public class Escritor extends Thread {
-        
+
         private int noAutor;
         private String libro = "";
         private String[] librosPorEscribir = {"Libro1", "Libro2", "Libro3", "Libro4", "Libro5",
-        "Libro6", "Libro7", "Libro8", "Libro9", "Libro10", "Libro11", "Libro12", "Libro13",
-        "Libro14", "Libro15", "Libro16", "Libro17", "Libro18", "Libro19", "Libro20"};
+            "Libro6", "Libro7", "Libro8", "Libro9", "Libro10", "Libro11", "Libro12", "Libro13",
+            "Libro14", "Libro15", "Libro16", "Libro17", "Libro18", "Libro19", "Libro20"};
         private LocalDateTime horaInicio, horaFin;
 
         public Escritor(int noAutor) {
             this.noAutor = noAutor;
         }
-        
+
         @Override
         public void run() {
-            int numLibro = (int) (Math.random() * (19 - 0)) + 0;
-            libro = librosPorEscribir[numLibro];
-            horaInicio = LocalDateTime.now();
-            System.out.println("Autor No. " + noAutor + " quiere entrar a la biblioteca");
-            System.out.println("Autor No. " + noAutor + " escribiendo su libro");
-            try {
-                // tarda 5 segundos en escribir un libro
-                Thread.sleep(5000);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(frmMain.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            biblioteca[0][siguiente_espacio] = libro;
-            biblioteca[1][siguiente_espacio] = this.getAutor();
-            siguiente_espacio++;
-            actualizarBiblioteca();
-            horaFin = LocalDateTime.now();
-            System.out.println(getAutor() + " abandonando la biblioteca");
-            calcularInanicion();
+            monitor.escribir(noAutor, libro, librosPorEscribir, horaInicio, horaFin, this);
         }
-        
+
         public String getAutor() {
             return "Autor No. " + String.valueOf(noAutor);
         }
-        
-        public void calcularInanicion() {
-            //
-        }
     }
-    
+
     public class Lector extends Thread {
-        
+
         private int noLector;
         private String libroLeido = "";
 
         public Lector(int noLector) {
             this.noLector = noLector;
         }
-        
+
         @Override
         public void run() {
             System.out.println("Lector No. " + noLector + " quiere entrar a la biblioteca");
@@ -124,24 +100,55 @@ public class frmMain extends javax.swing.JFrame {
             System.out.println("Lector No. " + noLector + " terminó de leer el libro");
             System.out.println(getLector() + " abandonando la biblioteca");
         }
-        
+
         public String getLector() {
             return "Lector No. " + String.valueOf(noLector);
         }
     }
-    
+
+    public class Monitor {
+
+        // Región crítica
+        String[][] biblioteca = new String[2][30];
+        int siguiente_espacio = 5; // habrán 5 libros por defecto, por lo que irá agregando libros según el próximo espacio disponible
+        int cl = 0; // contador de lectores durante la región crítica
+        int ce = 0; // contador de escritores durante la región crítica
+
+        public Monitor() {
+        }
+
+        public synchronized void escribir(int noAutor,String libro, String[] librosPorEscribir, LocalDateTime horaInicio, LocalDateTime horaFin, Escritor escritor) {
+            int numLibro = (int) (Math.random() * (19 - 0)) + 0;
+            libro = librosPorEscribir[numLibro];
+            horaInicio = LocalDateTime.now();
+            System.out.println("Autor No. " + noAutor + " quiere entrar a la biblioteca");
+            System.out.println("Autor No. " + noAutor + " escribiendo su libro");
+            try {
+                // tarda 5 segundos en escribir un libro
+                Thread.sleep(5000);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(frmMain.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            biblioteca[0][siguiente_espacio] = libro;
+            biblioteca[1][siguiente_espacio] = escritor.getAutor();
+            siguiente_espacio++;
+            actualizarBiblioteca();
+            horaFin = LocalDateTime.now();
+            System.out.println(escritor.getAutor() + " abandonando la biblioteca");
+        }
+
+    }
+
     public void actualizarBiblioteca() {
         txaBiblioteca.setText("");
-        for (int j=0; j<siguiente_espacio; j++) {
+        for (int j = 0; j < siguiente_espacio; j++) {
             String textoActual = txaBiblioteca.getText();
-            txaBiblioteca.setText(textoActual + "\n"+ biblioteca[0][j] + " por: " + biblioteca[1][j]);
+            txaBiblioteca.setText(textoActual + "\n" + biblioteca[0][j] + " por: " + biblioteca[1][j]);
         }
     }
 
     /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
+     * This method is called from within the constructor to initialize the form. WARNING: Do NOT modify this code. The content of this method is always regenerated by the Form Editor.
      */
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -262,7 +269,7 @@ public class frmMain extends javax.swing.JFrame {
 
     private void btnAgregarEscritorActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAgregarEscritorActionPerformed
         // TODO add your handling code here:
-        for (int i=0; i<3; i++) {
+        for (int i = 0; i < 3; i++) {
             escritores++; // nuevo escritor
             hilo_escritor = new Escritor(escritores);
             hilo_escritor.start();
